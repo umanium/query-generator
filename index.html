@@ -1,0 +1,146 @@
+<head>
+    <meta charset="utf-8"/>
+    <title>Query Generator</title>
+    <link href="assets/css/bootstrap.min.css" rel="stylesheet" />
+    <link href="assets/css/bootstrap-theme.min.css" rel="stylesheet" />
+</head>
+<body>
+    <div class="container"><div class="row"><div class="col-12">
+        <h1>Query Generator</h1>
+        <h3>This is an example of query generator. You can generate a POSTGRESQL query based on this form.</h3>
+        <div id="qgen-form">
+            <form>
+                <label for="table-select">Select table to use:</label><br>
+                <select id="table-select">
+                </select><br><br>
+
+                <label for="period-select">Select time period:</label><br>
+                <select id="period-select">
+                    <option value="1 day">1 Day</option>
+                    <option value="7 day">7 Days</option>
+                    <option value="1 month">1 Month</option>
+                </select><br><br>
+
+                <label>Conditions:</label> <input type="button" id="add-condition-button" value="Add Condition"/><br>
+                <div id="conditions"></div>
+                <br><br>
+                <input type="button" id="generate-query-button" value="Generate Query"/>
+            </form> 
+        </div>
+        <hr>
+        <div id="query-result">
+            <h3>Query Result:</h3>
+            <code id="query-space"></code>
+        </div>
+        <hr>
+    </div></div></div>
+    <div class="container">
+        <p class="navbar-text pull-left">© 2020 - Website by umanium - Email me at abdulmushawwir@gmail.com</p>
+    </div>
+    
+    <script src="assets/js/jquery-3.2.1.min.js" type="text/javascript"></script>
+    <script src="assets/js/bootstrap.min.js" type="text/javascript"></script>
+    <script>
+        // define the tables
+        var tableStructure = {
+            "table_a": {"name": "Table A",
+                        "structure": {"id": "int", "name": "varchar", "category": "varchar"}},
+            "table_b": {"name": "Table B",
+                        "structure": {"id": "int", "username": "varchar", "gender": "varchar"}}
+        }
+        var activeTable = "";
+        var conditionCounter = 0;
+
+        // listener
+        document.getElementById("table-select").addEventListener("change", tableSelect);
+        function tableSelect() {
+            var tableName = document.getElementById("table-select").value;
+            if (tableName != activeTable) {
+                document.getElementById("conditions").innerHTML = "";
+                conditionCounter = 0;
+            }
+            activeTable = tableName;
+        }
+
+        document.getElementById("generate-query-button").addEventListener("click", generateQuery);
+        function generateQuery() {
+            var queryObject = generateObject();
+            var period = queryObject["period"];
+            var table = queryObject["table"];
+            var conditions = "";
+            for (i = 0; i < conditionCounter; i++) {
+                conditions += generateConditionQuery(queryObject["conditions"][i]);
+            } 
+            var query = 
+                `SELECT * FROM ${table} WHERE time >= CURRENT_TIMESTAMP - INTERVAL '${period}'${conditions};`
+
+            document.getElementById("query-space").innerHTML = query;
+        }
+
+        function generateObject() {
+            var period = document.getElementById("period-select").value;
+            var table = document.getElementById("table-select").value;
+            var conditions = [];
+            for (i = 0; i < conditionCounter; i++) {
+                conditions.push(generateCondition(i));
+            }
+
+            return {
+                'period': period,
+                'table': table,
+                'conditions': conditions
+            };
+        }
+
+        function generateCondition(index) {
+            var column = document.getElementById(`column-${index}`).value;
+            var comparison = document.getElementById(`compare-${index}`).value;
+            var value = document.getElementById(`value-${index}`).value;
+            
+            return {"column": column, "comparison": comparison, "value": value};
+        }
+
+        function generateConditionQuery(condition) {
+            var column = condition["column"];
+            var comparison = condition["comparison"];
+            var columnType = tableStructure[activeTable]["structure"][column];
+            var value = condition["value"];
+            if (columnType != "int") {
+                value = `'${value}'`
+            }
+
+            return ` AND ${column} ${comparison} ${value}`;
+        }
+
+        document.getElementById("add-condition-button").addEventListener("click", addCondition);
+        function addCondition() {
+            var d = document.createElement("div");
+            d.setAttribute("id", `condition-${conditionCounter}`);
+            d.innerHTML =
+                `<select id="column-${conditionCounter}"></select> <select id="compare-${conditionCounter}"></select> <input type="text" id="value-${conditionCounter}" />`
+            document.getElementById("conditions").appendChild(d);
+
+            var structure = tableStructure[activeTable]["structure"]
+            for (var column in structure) {
+                createTableOption(column, column, `column-${conditionCounter}`)
+            }
+
+            createTableOption("=", "is", `compare-${conditionCounter}`)
+            createTableOption("<>", "is not", `compare-${conditionCounter}`)
+
+            conditionCounter += 1
+        }
+
+        // generate options
+        function createTableOption(key, value, elementId) {
+            var o = document.createElement("option");
+            o.value = key;
+            o.innerHTML = value;
+            document.getElementById(elementId).appendChild(o);
+        }
+        for (var table in tableStructure) {
+            createTableOption(table, tableStructure[table]["name"], "table-select")
+        }
+        tableSelect();
+    </script>
+</body>
